@@ -170,7 +170,7 @@ def salt_and_pepper(X, proba=0.5):
     return X * a + c
 
 
-def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walkback=False, denoise=False):
+def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walkback=False, denoise=False, epochs=100):
     batch_size = 64
     gamma = 0.99
     dataset = load_dataset(dataset, split='train')
@@ -193,7 +193,7 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
     nb_updates = 0
     _save_weights = partial(save_weights, folder=folder)
 
-    for epoch in range(1000):
+    for epoch in range(epochs):
         for X, y in dataloader:
             ae.zero_grad()
             X = Variable(X)
