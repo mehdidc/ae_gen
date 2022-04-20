@@ -1,5 +1,4 @@
 import numpy as np
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 from torch.nn.init import xavier_uniform
@@ -103,7 +102,7 @@ class DenseAE(nn.Module):
     def forward(self, X):
         size = X.size()
         if self.denoise is not None:
-            X = X * Variable((torch.rand(X.size()) <= self.denoise).float()).to(X.device)
+            X = X * ((torch.rand(X.size()) <= self.denoise).float()).to(X.device)
         X = X.view(X.size(0), -1)
         h = self.encode(X)
         if self.ksparse:
@@ -124,7 +123,7 @@ def ksparse(x, nb_active=10):
             inds = np.array(inds)
             inds = torch.from_numpy(inds).long()
             mask[i][inds] = 0
-    return x * Variable(mask).float().to(x.device)
+    return x * (mask).float().to(x.device)
 
 
 class ConvAE(nn.Module):

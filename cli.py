@@ -7,10 +7,6 @@ from clize import run
 import numpy as np
 from skimage.io import imsave
 
-from sklearn.manifold import TSNE
-
-from scipy.spatial.distance import cdist
-
 from viz import grid_of_images_default
 
 import torch.nn as nn
@@ -66,6 +62,7 @@ def plot_generated(code_2d, categories):
 
 def grid_embedding(h):
     from lapjv import lapjv
+    from scipy.spatial.distance import cdist
     assert int(np.sqrt(h.shape[0])) ** 2 == h.shape[0], 'Nb of examples must be a square number'
     size = int(np.sqrt(h.shape[0]))
     grid = np.dstack(np.meshgrid(np.linspace(0, 1, size), np.linspace(0, 1, size))).reshape(-1, 2)
@@ -277,6 +274,7 @@ def test(*, dataset='mnist', folder='mnist', nb_iter=100, nb_generate=100, tsne=
     imsave('{}/gen_full.png'.format(folder), gr)
 
     if tsne:
+        from sklearn.manifold import TSNE
         print('Load data...')
         X, y = next(iter(dataloader))
         print('Encode data...')
