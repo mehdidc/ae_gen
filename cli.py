@@ -10,7 +10,6 @@ from skimage.io import imsave
 from sklearn.manifold import TSNE
 
 from scipy.spatial.distance import cdist
-from lapjv import lapjv
 
 from viz import grid_of_images_default
 
@@ -68,6 +67,7 @@ def plot_generated(code_2d, categories):
 
 
 def grid_embedding(h):
+    from lapjv import lapjv
     assert int(np.sqrt(h.shape[0])) ** 2 == h.shape[0], 'Nb of examples must be a square number'
     size = int(np.sqrt(h.shape[0]))
     grid = np.dstack(np.meshgrid(np.linspace(0, 1, size), np.linspace(0, 1, size))).reshape(-1, 2)
@@ -146,6 +146,16 @@ def build_model(name, w, h, c):
         ae = SimpleConvAE(
             w=w, h=h, c=c,
             nb_filters=128,
+        )
+    elif name == 'deep_convae':
+        ae = DeepConvAE(
+            w=w, h=h, c=c, 
+            nb_filters=128, 
+            spatial=True, 
+            channel=True, 
+            channel_stride=4,
+            # total layers = nb_layers*2, where we have nb_layers for encoder and nb_layers for decoder
+            nb_layers=3, 
         )
     else:
         raise ValueError('Unknown model')
