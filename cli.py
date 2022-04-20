@@ -1,3 +1,4 @@
+import os
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -220,19 +221,17 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
             nb_updates += 1
 
 
-def test(*, dataset='mnist', folder='mnist', nb_iter=100, nb_generate=100, tsne=False):
+def test(*, dataset='mnist', folder='out', model_path=None, nb_iter=100, nb_generate=100, tsne=False):
+    if not os.path.exists(folder):
+        os.makedirs(folder, exist_ok=True)
     dataset = load_dataset(dataset, split='train')
     x0, _ = dataset[0]
     c, h, w = x0.size()
     nb = nb_generate
-    dataloader = torch.utils.data.DataLoader(
-        dataset, 
-        batch_size=nb,
-        shuffle=True, 
-        num_workers=1
-    )
     print('Load model...')
-    ae = torch.load('{}/model.th'.format(folder), map_location="cpu")
+    if model_path is None:
+        model_path = os.path.join(folder, "model.th")
+    ae = torch.load(model_path, map_location="cpu")
     ae = ae.to(device)
     def enc(X):
         batch_size = 64
@@ -275,6 +274,12 @@ def test(*, dataset='mnist', folder='mnist', nb_iter=100, nb_generate=100, tsne=
 
     if tsne:
         from sklearn.manifold import TSNE
+        dataloader = torch.utils.data.DataLoader(
+            dataset, 
+            batch_size=nb,
+            shuffle=True, 
+            num_workers=1
+        )
         print('Load data...')
         X, y = next(iter(dataloader))
         print('Encode data...')
