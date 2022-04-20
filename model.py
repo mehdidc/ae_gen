@@ -154,12 +154,6 @@ class ConvAE(nn.Module):
         return Xr
     
     def sparsify(self, h):
-        if not hasattr(self, 'spatial'):
-            self.spatial = True
-        if not hasattr(self, 'channel'):
-            self.channel = True
-        if not hasattr(self, 'channel_stride'):
-            self.channel_stride = 4
         if self.spatial:
             h = spatial_sparsity(h)
         if self.channel:
