@@ -1,5 +1,7 @@
 Release  of ConvAE model (from [here](https://arxiv.org/pdf/1606.04345.pdf)) and DeepConvAE model (from [here](https://tel.archives-ouvertes.fr/tel-01838272/file/75406_CHERTI_2018_diffusion.pdf), Section 10.1 with `L=3`)
 
+![](image.png)
+
 # Install requirements
 
 `pip install -r requirements.txt`
