@@ -198,7 +198,6 @@ class SimpleConvAE(nn.Module):
             h = strided_channel_sparsity(h, stride=self.channel_stride)
         return h
 
-
 class DeepConvAE(nn.Module):
 
     def __init__(self, w=32, h=32, c=1, nb_filters=64, nb_layers=3, spatial=True, channel=True, channel_stride=4):
@@ -246,40 +245,19 @@ class DeepConvAE(nn.Module):
 
 
 def spatial_sparsity(x):
-    xf = x.view(x.size(0), x.size(1), -1)
-    m, _ = xf.max(2)
-    m = m.view(m.size(0), m.size(1), 1)
-    m = m.repeat(1, 1, xf.size(2))
-    xf = xf * (xf==m).float()
-    xf = xf.view(x.size())
-    return xf
+    maxes = x.amax(dim=(2,3), keepdims=True)
+    return x * equals(x, maxes)
 
+def equals(x, y, eps=1e-8):
+    return torch.abs(x-y) <= eps
 
-def channel_sparsity(x):
-    m, _ = x.max(1)
-    m = m.repeat(1, x.size(1), 1, 1)
-    out = x * (x==m).float()
-    return out
-
-
-def strided_channel_sparsity(x, stride=2):
-    if stride == 1:
-        return channel_sparsity(x)
-    mask = _strided_channel_sparsity_mask(x.data.cpu().numpy(), stride)
-    mask = mask.astype('float32')
-    mask = torch.from_numpy(mask)
-    mask = Variable(mask)
-    mask = mask.to(x.device)
+def strided_channel_sparsity(x, stride=1):
+    B, F = x.shape[0:2]
+    h, w = x.shape[2:]
+    x_ = x.view(B, F, h // stride, stride, w // stride, stride)
+    mask = equals(x_, x_.amax(axis=(1, 3, 5), keepdims=True))
+    mask = mask.view(x.shape).float()
     return x * mask
-
-
-def _strided_channel_sparsity_mask(X, stride):
-    B, F = X.shape[0:2]
-    w, h = X.shape[2:]
-    X_ = X.reshape((B, F, w // stride, stride, h // stride, stride))
-    mask = (X_ ==  X_.max(axis=(1, 3, 5), keepdims=True))
-    mask = mask.reshape(X.shape)
-    return mask
 
 
 def _weights_init(m):

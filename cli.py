@@ -14,9 +14,7 @@ from scipy.spatial.distance import cdist
 from viz import grid_of_images_default
 
 import torch.nn as nn
-from torch.autograd import Variable
 import torch
-
 
 from model import DenseAE
 from model import ConvAE
@@ -99,13 +97,8 @@ def iterative_refinement(ae, nb_examples=1, nb_iter=10, w=28, h=28, c=1, batch_s
     if batch_size is None:
         batch_size = nb_examples
     x = torch.rand(nb_iter, nb_examples, c, w, h)
-    v = Variable(torch.zeros(batch_size, c, w, h))
-    v = v.to(device)
     for i in range(1, nb_iter):
         for j in range(0, nb_examples, batch_size):
-            # newv = x[i-1][j:j + batch_size]
-            # newv = newv.to(device)
-            # v.data.resize_as_(newv).copy_(newv)
             oldv = x[i-1][j:j + batch_size].to(device)
             newv = ae(oldv)
             newv = newv.data.cpu()
@@ -154,7 +147,6 @@ def build_model(name, w, h, c):
             spatial=True, 
             channel=True, 
             channel_stride=4,
-            # total layers = nb_layers*2, where we have nb_layers for encoder and nb_layers for decoder
             nb_layers=3, 
         )
     else:
@@ -170,8 +162,7 @@ def salt_and_pepper(X, proba=0.5):
     return X * a + c
 
 
-def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walkback=False, denoise=False, epochs=100):
-    batch_size = 64
+def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walkback=False, denoise=False, epochs=100, batch_size=64, log_interval=100):
     gamma = 0.99
     dataset = load_dataset(dataset, split='train')
     x0, _ = dataset[0]
@@ -180,7 +171,7 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
         dataset, 
         batch_size=batch_size,
         shuffle=True, 
-        num_workers=1
+        num_workers=4
     )
     if resume:
         ae = torch.load('{}/model.th'.format(folder))
@@ -188,7 +179,7 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
     else:
         ae = build_model(model, w=w, h=h, c=c)
         ae = ae.to(device)
-    optim = torch.optim.Adadelta(ae.parameters(), lr=0.1)
+    optim = torch.optim.Adadelta(ae.parameters(), lr=0.1, eps=1e-7, rho=0.95, weight_decay=0)
     avg_loss = 0.
     nb_updates = 0
     _save_weights = partial(save_weights, folder=folder)
@@ -196,7 +187,6 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
     for epoch in range(epochs):
         for X, y in dataloader:
             ae.zero_grad()
-            X = Variable(X)
             X = X.to(device)
             if hasattr(ae, 'nb_active'):
                 ae.nb_active = max(ae.nb_active - 1, 32)
@@ -207,14 +197,14 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
                 nb = 5
                 for _ in range(nb):
                     x = salt_and_pepper(x, proba=0.3) # denoise
-                    x = Variable(x).to(device)
+                    x = x.to(device)
                     x = ae(x) # reconstruct
                     Xr = x
                     loss += (((x - X) ** 2).view(X.size(0), -1).sum(1).mean()) / nb
                     x = (torch.rand(x.size()).to(device) <= x.data).float() # sample
             # denoise only
             elif denoise:
-                Xc = Variable(salt_and_pepper(X.data, proba=0.3))
+                Xc = salt_and_pepper(X.data, proba=0.3)
                 Xr = ae(Xc)
                 loss = ((Xr - X) ** 2).view(X.size(0), -1).sum(1).mean()
             # normal training
@@ -224,22 +214,16 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
             loss.backward()
             optim.step()
             avg_loss = avg_loss * gamma + loss.item() * (1 - gamma)
-            if nb_updates % 100 == 0:
-                print('Epoch : {:05d} Loss : {:.6f}'.format(epoch, avg_loss))
+            if nb_updates % log_interval == 0:
+                print('Epoch : {:05d} AvgTrainLoss: {:.6f}, Batch Loss : {:.6f}'.format(epoch, avg_loss, loss.item()  ))
                 gr = grid_of_images_default(np.array(Xr.data.tolist()))
                 imsave('{}/rec.png'.format(folder), gr)
                 ae.apply(_save_weights)
                 torch.save(ae, '{}/model.th'.format(folder))
-                """
-                g = iterative_refinement(ae, nb_iter=50, nb_examples=50, w=w, h=h, c=c)
-                g = g[-1]
-                gr = grid_of_images_default(np.array(g.tolist()))
-                imsave('{}/gen.png'.format(folder), gr)
-                """
             nb_updates += 1
 
 
-def test(*, dataset='mnist', folder='mnist', nb_generate=5000, tsne=False):
+def test(*, dataset='mnist', folder='mnist', nb_iter=100, nb_generate=100, tsne=False):
     dataset = load_dataset(dataset, split='train')
     x0, _ = dataset[0]
     c, h, w = x0.size()
@@ -258,11 +242,10 @@ def test(*, dataset='mnist', folder='mnist', nb_generate=5000, tsne=False):
         h_list = []
         for i in range(0, X.size(0), batch_size):
             x = X[i:i + batch_size]
-            x = Variable(x).to(device)
+            x = x.to(device)
             name = ae.__class__.__name__
             if name in ('ConvAE',):
                 h = ae.encode(x)
-                h, _ = h.max(2)
                 h, _ = h.max(2)
                 h = h.view((h.size(0), -1))
             elif name in ('DenseAE',):
@@ -278,7 +261,7 @@ def test(*, dataset='mnist', folder='mnist', nb_generate=5000, tsne=False):
     print('iterative refinement...')
     g = iterative_refinement(
         ae, 
-        nb_iter=100, 
+        nb_iter=nb_iter, 
         nb_examples=nb, 
         w=w, h=h, c=c, 
         batch_size=64
