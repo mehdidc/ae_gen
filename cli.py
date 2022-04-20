@@ -223,7 +223,7 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
                 loss = ((Xr - X) ** 2).view(X.size(0), -1).sum(1).mean()
             loss.backward()
             optim.step()
-            avg_loss = avg_loss * gamma + loss.data[0] * (1 - gamma)
+            avg_loss = avg_loss * gamma + loss.item() * (1 - gamma)
             if nb_updates % 100 == 0:
                 print('Epoch : {:05d} Loss : {:.6f}'.format(epoch, avg_loss))
                 gr = grid_of_images_default(np.array(Xr.data.tolist()))
@@ -239,11 +239,11 @@ def train(*, dataset='mnist', folder='mnist', resume=False, model='convae', walk
             nb_updates += 1
 
 
-def test(*, dataset='mnist', folder='mnist'):
+def test(*, dataset='mnist', folder='mnist', nb_generate=5000, tsne=False):
     dataset = load_dataset(dataset, split='train')
     x0, _ = dataset[0]
     c, h, w = x0.size()
-    nb = 5000
+    nb = nb_generate
     dataloader = torch.utils.data.DataLoader(
         dataset, 
         batch_size=nb,
@@ -289,44 +289,44 @@ def test(*, dataset='mnist', folder='mnist'):
     imsave('{}/gen_full_iters.png'.format(folder), gr)
 
     g = g[-1] # last iter
-    gr = grid_of_images_default(g)
+    print(g.shape)
+    gr = grid_of_images_default(g.numpy())
     imsave('{}/gen_full.png'.format(folder), gr)
 
+    if tsne:
+        print('Load data...')
+        X, y = next(iter(dataloader))
+        print('Encode data...')
+        xh = enc(X)
+        print('Encode generated...')
+        gh = enc(g)
+        X = X.numpy()
+        g = g.numpy()
+        xh = xh.numpy()
+        gh = gh.numpy()
 
-    print('Load data...')
-    X, y = next(iter(dataloader))
-    print('Encode data...')
-    xh = enc(X)
-    print('Encode generated...')
-    gh = enc(g)
-    X = X.numpy()
-    g = g.numpy()
-    xh = xh.numpy()
-    gh = gh.numpy()
+        a = np.concatenate((X, g), axis=0)
+        ah = np.concatenate((xh, gh), axis=0)
+        labels = np.array(y.tolist() + [-1] * len(g))
+        sne = TSNE()
+        print('fit tsne...')
+        ah = sne.fit_transform(ah)
+        print('grid embedding...')
+        
+        asmall = np.concatenate((a[0:450], a[nb:nb + 450]), axis=0)
+        ahsmall = np.concatenate((ah[0:450], ah[nb:nb + 450]), axis=0)
+        rows = grid_embedding(ahsmall)
+        asmall = asmall[rows]
+        gr = grid_of_images_default(asmall)
+        imsave('{}/sne_grid.png'.format(folder), gr)
 
-    a = np.concatenate((X, g), axis=0)
-    ah = np.concatenate((xh, gh), axis=0)
-    labels = np.array(y.tolist() + [-1] * len(g))
-
-    sne = TSNE()
-    print('fit tsne...')
-    ah = sne.fit_transform(ah)
-    print('grid embedding...')
-    
-    asmall = np.concatenate((a[0:450], a[nb:nb + 450]), axis=0)
-    ahsmall = np.concatenate((ah[0:450], ah[nb:nb + 450]), axis=0)
-    rows = grid_embedding(ahsmall)
-    asmall = asmall[rows]
-    gr = grid_of_images_default(asmall)
-    imsave('{}/sne_grid.png'.format(folder), gr)
-
-    fig = plt.figure(figsize=(10, 10))
-    plot_dataset(ah, labels)
-    plot_generated(ah, labels)
-    plt.legend(loc='best')
-    plt.axis('off')
-    plt.savefig('{}/sne.png'.format(folder))
-    plt.close(fig)
+        fig = plt.figure(figsize=(10, 10))
+        plot_dataset(ah, labels)
+        plot_generated(ah, labels)
+        plt.legend(loc='best')
+        plt.axis('off')
+        plt.savefig('{}/sne.png'.format(folder))
+        plt.close(fig)
 
 
 
