@@ -14,9 +14,9 @@ bash download_models.sh
 
 # Training
 
-`python cli.py train  --dataset=mnist --folder=mnist --model=convae`
+`python cli.py train  --dataset=mnist --folder=convae --model=convae`
 
-`python cli.py train  --dataset=mnist --folder=mnist --model=deep_convae`
+`python cli.py train  --dataset=mnist --folder=deep_convae --model=deep_convae`
 
 # Generate samples
 
