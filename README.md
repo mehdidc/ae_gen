@@ -5,4 +5,5 @@ Official release of:
 - Dense K-Sparse model (from [`Out-of-class novelty generation`](https://openreview.net/forum?id=r1QXQkSYg))
 
 
-!!WARNING!! moved to https://huggingface.co/spaces/mehdidc/ae_gen.  See also <https://huggingface.co/spaces/mehdidc/ae_gen/blob/main/README.md>
+**WARNING** moved to <https://huggingface.co/spaces/mehdidc/ae_gen>. 
+ See also <https://huggingface.co/spaces/mehdidc/ae_gen/blob/main/README.md> for more information.
